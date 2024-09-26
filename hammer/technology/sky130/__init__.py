@@ -739,7 +739,7 @@ class SKY130Tech(HammerTechnology):
         if self.get_setting("technology.sky130.stdcell_library") == "sky130_scl":
 
             hooks["innovus"].append(
-                HammerTool.make_replacement_hook(
+                HammerTool.make_replacement_hook( # TODO: the only thing that *needs* to be hardcoded is the met1 straps, should have a clean way to disable the tapcell reference stuff so this can be a pre-insertion hook (generate_rail_layer=false seems to not be enough, hammer still errors if there are no tapcells)
                     "power_straps", power_rail_straps_no_tapcells
                 )
             )
@@ -776,6 +776,9 @@ class SKY130Tech(HammerTechnology):
             )
         ]
         pegasus_hooks = []
+        pegasus_hooks.append(HammerTool.make_post_insertion_hook(
+            "generate_lvs_ctl_file", pegasus_unset_break_ambig_max
+        ))
         if self.use_sram22:
             calibre_hooks.append(
                 HammerTool.make_post_insertion_hook(
@@ -788,13 +791,18 @@ class SKY130Tech(HammerTechnology):
                     "generate_lvs_run_file", calibre_lvs_blackbox_srams
                 )
             )
-
-        if self.get_setting("technology.sky130.stdcell_library") == "sky130_scl":
             pegasus_hooks.append(
                 HammerTool.make_post_insertion_hook(
-                    "generate_lvs_ctl_file", pegasus_lvs_add_130a_primitives
+                    "generate_lvs_ctl_file", pegasus_lvs_blackbox_srams
                 )
             )
+
+        # if self.get_setting("technology.sky130.stdcell_library") == "sky130_scl":
+        #     pegasus_hooks.append(
+        #         HammerTool.make_post_insertion_hook(
+        #             "generate_lvs_ctl_file", pegasus_lvs_add_130a_primitives
+        #         )
+        #     )
         hooks = {"calibre": calibre_hooks, "pegasus": pegasus_hooks}
         return hooks.get(tool_name, [])
 
@@ -1026,17 +1034,11 @@ def power_rail_straps_no_tapcells(ht: HammerTool) -> bool:
 
 # Power strap definition for layer met1 (rails):
 
-# should be .14
 set_db add_stripes_stacked_via_top_layer met1
 set_db add_stripes_stacked_via_bottom_layer met1
 set_db add_stripes_spacing_from_block 4.000
-#add_stripes -over_physical_pins 1 -nets {VDD VSS} -width .14 -direction horizontal -pin_layer met1 -layer met1
-#add_stripes -layer met1 -over_pins 1 -number_of_sets 1 -spacing 3.74 -direction horizontal -width .4 -nets { VSS VDD } -number_of_sets 1
-#add_stripes -pin_layer met1 -layer met1 -over_pins 1 -spacing .2 -direction horizontal -width .4 -nets { VSS VDD }
-#add_stripes -master "FILL*" -over_pins 1 -block_ring_bottom_layer_limit met1 -block_ring_top_layer_limit met1 -direction horizontal -layer met1 -nets {VSS VDD} -pad_core_ring_bottom_layer_limit met1 -width pin_width
-#add_stripes -nets {VDD VSS} -layer met1 -direction horizontal -width .4 -spacing 4.54 -set_to_set_distance 9.08 -start_from bottom -pin_offset -2.46
-#add_stripes -nets {VDD VSS} -layer met1 -direction horizontal -width .4 -spacing 3.74 -number_of_sets 1 -start_from left -switch_layer_over_obs false -max_same_layer_jog_length 2 -pad_core_ring_top_layer_limit met5 -pad_core_ring_bottom_layer_limit met1 -block_ring_top_layer_limit met5 -block_ring_bottom_layer_limit met1 -use_wire_group 0 -snap_wire_center_to_grid none
 add_stripes -nets {VDD VSS} -layer met1 -direction horizontal -start_offset -.2 -width .4 -spacing 3.74 -set_to_set_distance 8.28 -start_from bottom -switch_layer_over_obs false -max_same_layer_jog_length 2 -pad_core_ring_top_layer_limit met5 -pad_core_ring_bottom_layer_limit met1 -block_ring_top_layer_limit met5 -block_ring_bottom_layer_limit met1 -use_wire_group 0 -snap_wire_center_to_grid none
+
 
 # Power strap definition for layer met2:
 
@@ -1044,8 +1046,8 @@ set_db add_stripes_stacked_via_top_layer met2
 set_db add_stripes_stacked_via_bottom_layer met1
 set_db add_stripes_trim_antenna_back_to_shape {stripe}
 #set_db add_stripes_spacing_from_block 4.000
-#add_stripes -create_pins 0 -block_ring_bottom_layer_limit met2 -block_ring_top_layer_limit met1 -direction vertical -layer met2 -nets {VSS VDD} -pad_core_ring_bottom_layer_limit met1 -set_to_set_distance 101.20 -spacing 2.26 -switch_layer_over_obs 0 -width 1.42 -area [get_db designs .core_bbox] -start [expr [lindex [lindex [get_db designs .core_bbox] 0] 0] + 4.81]
-add_stripes -nets {VDD VSS} -layer met2 -direction vertical -width .2 -spacing 0.14 -number_of_sets 1 -extend_to all_domains -start_from left -switch_layer_over_obs false -max_same_layer_jog_length 2 -pad_core_ring_top_layer_limit met5 -pad_core_ring_bottom_layer_limit met1 -block_ring_top_layer_limit met5 -block_ring_bottom_layer_limit met1 -use_wire_group 0 -snap_wire_center_to_grid none
+add_stripes -create_pins 0 -block_ring_bottom_layer_limit met2 -block_ring_top_layer_limit met1 -direction vertical -layer met2 -nets {VSS VDD} -pad_core_ring_bottom_layer_limit met1 -set_to_set_distance 101.20 -spacing 2.26 -switch_layer_over_obs 0 -width 1.42 -area [get_db designs .core_bbox] -start [expr [lindex [lindex [get_db designs .core_bbox] 0] 0] + 4.81]
+#add_stripes -nets {VDD VSS} -layer met2 -direction vertical -width .2 -spacing 0.14 -number_of_sets 1 -extend_to all_domains -start_from left -switch_layer_over_obs false -max_same_layer_jog_length 2 -pad_core_ring_top_layer_limit met5 -pad_core_ring_bottom_layer_limit met1 -block_ring_top_layer_limit met5 -block_ring_bottom_layer_limit met1 -use_wire_group 0 -snap_wire_center_to_grid none
 
 # Power strap definition for layer met3:
 
@@ -1086,6 +1088,12 @@ def calibre_drc_blackbox_srams(ht: HammerTool) -> bool:
         f.write(drc_box)
     return True
 
+
+def pegasus_unset_break_ambig_max(ht: HammerTool) -> bool:
+    run_file = ht.lvs_ctl_file  # type: ignore
+    with open(run_file, "a") as f:
+        f.write("\nlvs_break_ambig_max -all")
+    return True
 
 def pegasus_drc_blackbox_srams(ht: HammerTool) -> bool:
     assert isinstance(ht, HammerDRCTool), "Exlude SRAMs only in DRC"
@@ -1140,7 +1148,7 @@ def pegasus_lvs_blackbox_srams(ht: HammerTool) -> bool:
     assert isinstance(ht, HammerLVSTool), "Blackbox and filter SRAMs only in LVS"
     lvs_box = ""
     for name in (
-        SKY130Tech.sky130_sram_names() + SKY130Tech.sky130_sram_primitive_names()
+        SKY130Tech.sky130_sram_names() # + SKY130Tech.sky130_sram_primitive_names()
     ):
         lvs_box += f"\nlvs_black_box {name} -gray"
     run_file = ht.lvs_ctl_file  # type: ignore
