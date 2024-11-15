@@ -26,7 +26,7 @@ from typing import List, Dict, Tuple, Any, Callable, Optional, Union, cast
 
 from hammer.utils import add_dicts, deeplist, deepdict, get_or_else, check_function_type
 
-from hammer.config import HammerJSONEncoder
+from hammer.config import HammerJSONEncoder, combine_configs
 
 
 KEY_DIR = tempfile.mkdtemp()
@@ -1255,8 +1255,8 @@ class CLIDriver:
         else:
             raise ValueError("Output-only config does not appear to be output only")
 
-        output_full = deepdict(driver.project_config)
-        output_full.update(deepdict(output))
+        output_full = combine_configs([deepdict(driver.project_config), deepdict(output)])
+
         # Merged configs are always complete
         if "vlsi.builtins.is_complete" in output_full:
             del output_full["vlsi.builtins.is_complete"]
